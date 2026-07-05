@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <span class="eyebrow">// Welcome back</span>
+    <h2>Log in to JobPortal</h2>
+    <div id="loginAlert"></div>
+    <form id="loginForm">
+      <div class="field" style="margin-bottom:14px;">
+        <label for="username">Username</label>
+        <input type="text" id="username" required autocomplete="username">
+      </div>
+      <div class="field" style="margin-bottom:20px;">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Log in</button>
+    </form>
+    <p class="text-muted" style="margin-top:18px; text-align:center;">
+      New here? <a href="register.html" style="text-decoration:underline; color:var(--ink);">Create an account</a>
+    </p>
+    <hr class="divider">
+    <p class="text-muted" style="font-size:.78rem; text-align:center;">
+      Demo logins — employer: <span class="mono">nova_tech</span> · candidate: <span class="mono">zeeshan_dev</span> · password: <span class="mono">password123</span>
+    </p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  renderNav();
+
+  if (Auth.isLoggedIn()) window.location.href = "index.html";
+
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("loginAlert");
+    alertEl.innerHTML = "";
+    const btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Logging in…`;
+    try {
+      const user = await Auth.login(document.getElementById("username").value, document.getElementById("password").value);
+      window.location.href = user.role === "employer" ? "employer-dashboard.html" : "candidate-dashboard.html";
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Log in";
+    }
+  });
+</script>
+</body>
+</html>

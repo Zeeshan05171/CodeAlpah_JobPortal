@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse jobs — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+<style>
+  .filters-bar{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius-md);
+    padding: 18px; display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap:12px; align-items:end;
+    margin-bottom: 26px;
+  }
+  @media (max-width: 980px){ .filters-bar{ grid-template-columns: 1fr 1fr; } }
+  .results-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+  .pager{ display:flex; justify-content:center; gap:10px; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<section style="background:var(--ink); padding: 40px 0 26px;">
+  <div class="container">
+    <span class="eyebrow">// Job board</span>
+    <h1 style="color:#fff; font-size:2rem;">Browse open roles</h1>
+  </div>
+</section>
+
+<div class="container" style="margin-top:-8px;">
+  <form class="filters-bar" id="filterForm">
+    <div class="field">
+      <label for="f-keyword">Keyword</label>
+      <input type="text" id="f-keyword" name="keyword" placeholder="Title, skill, description…">
+    </div>
+    <div class="field">
+      <label for="f-location">Location</label>
+      <input type="text" id="f-location" name="location" placeholder="City">
+    </div>
+    <div class="field">
+      <label for="f-type">Job type</label>
+      <select id="f-type" name="job_type">
+        <option value="">Any</option>
+        <option value="full_time">Full-time</option>
+        <option value="part_time">Part-time</option>
+        <option value="contract">Contract</option>
+        <option value="internship">Internship</option>
+        <option value="remote">Remote</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-exp">Experience</label>
+      <select id="f-exp" name="experience_level">
+        <option value="">Any</option>
+        <option value="entry">Entry level</option>
+        <option value="mid">Mid level</option>
+        <option value="senior">Senior level</option>
+        <option value="lead">Lead / Principal</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-min">Min salary (PKR)</label>
+      <input type="number" id="f-min" name="salary_min" placeholder="e.g. 60000">
+    </div>
+    <button class="btn btn-dark" type="submit">Apply filters</button>
+  </form>
+
+  <div class="results-head">
+    <div class="text-muted" id="resultsCount">Loading…</div>
+    <select id="ordering" style="width:auto;">
+      <option value="-created_at">Newest first</option>
+      <option value="-salary_max">Highest salary</option>
+      <option value="deadline">Deadline soonest</option>
+    </select>
+  </div>
+
+  <div class="grid-jobs" id="jobResults"></div>
+  <div class="pager" id="pager"></div>
+</div>
+
+<footer>
+  <div class="container">
+    <div class="mono">JobPortal — a Django REST + vanilla JS portfolio project.</div>
+    <div><a href="index.html">Home</a></div>
+  </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  renderNav("jobs");
+
+  let currentPage = 1;
+  let currentParams = {};
+
+  function paramsFromUrl() {
+    const p = new URLSearchParams(window.location.search);
+    const obj = {};
+    for (const [k, v] of p.entries()) obj[k] = v;
+    return obj;
+  }
+
+  function fillFormFromParams(params) {
+    const form = document.getElementById("filterForm");
+    for (const [key, val] of Object.entries(params)) {
+      const el = form.elements[key];
+      if (el) el.value = val;
+    }
+  }
+
+  function jobCardHtml(job) {
+    const cardClass = job.status !== "open" ? "closed" : job.is_remote ? "remote" : "";
+    return `
+      <article class="job-card ${cardClass}">
+        <div class="co">
+          <div class="co-mark">${companyInitials(job.company_name)}</div>
+          <div>
+            <div class="co-name">${escapeHtml(job.company_name)}</div>
+            <div class="text-muted mono" style="font-size:.72rem;">${timeAgo(job.created_at)}</div>
+          </div>
+        </div>
+        <h3><a href="job-detail.html?slug=${job.slug}">${escapeHtml(job.title)}</a></h3>
+        <div class="job-meta">
+          <span class="tag gold">${JOB_TYPE_LABELS[job.job_type] || job.job_type}</span>
+          <span class="tag">${escapeHtml(job.location)}</span>
+          <span class="tag">${EXPERIENCE_LABELS[job.experience_level] || job.experience_level}</span>
+          ${job.is_remote ? '<span class="tag blue">Remote friendly</span>' : ""}
+        </div>
+        <p class="desc">${escapeHtml(job.description).slice(0, 110)}${job.description.length > 110 ? "…" : ""}</p>
+        <div class="foot">
+          <span class="salary">${formatSalary(job.salary_min, job.salary_max)}</span>
+          <span class="applicants-count">${job.applicant_count} applicant${job.applicant_count === 1 ? "" : "s"}</span>
+        </div>
+        ${job.has_applied ? '<span class="tag teal" style="align-self:flex-start;">✓ Applied</span>' : ""}
+      </article>
+    `;
+  }
+
+  async function loadJobs(page = 1) {
+    currentPage = page;
+    const resultsEl = document.getElementById("jobResults");
+    resultsEl.innerHTML = `<div class="text-muted">Loading…</div>`;
+    try {
+      const data = await JobsAPI.list({ ...currentParams, page, ordering: document.getElementById("ordering").value });
+      const jobs = data.results || data;
+      document.getElementById("resultsCount").textContent = `${data.count ?? jobs.length} role${(data.count ?? jobs.length) === 1 ? "" : "s"} found`;
+      resultsEl.innerHTML = jobs.length
+        ? jobs.map(jobCardHtml).join("")
+        : `<div class="empty-state"><div class="icon">🗂️</div>No roles match those filters yet. Try widening your search.</div>`;
+
+      const pager = document.getElementById("pager");
+      pager.innerHTML = "";
+      if (data.previous) {
+        const b = document.createElement("button");
+        b.className = "btn btn-outline btn-sm";
+        b.textContent = "← Previous";
+        b.onclick = () => { loadJobs(page - 1); window.scrollTo({top:0, behavior:"smooth"}); };
+        pager.appendChild(b);
+      }
+      if (data.next) {
+        const b = document.createElement("button");
+        b.className = "btn btn-outline btn-sm";
+        b.textContent = "Next →";
+        b.onclick = () => { loadJobs(page + 1); window.scrollTo({top:0, behavior:"smooth"}); };
+        pager.appendChild(b);
+      }
+    } catch (e) {
+      resultsEl.innerHTML = `<div class="alert alert-error">Couldn't load jobs. Is the backend running at ${API_BASE}?</div>`;
+    }
+  }
+
+  document.getElementById("filterForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    currentParams = {};
+    for (const [k, v] of form.entries()) if (v) currentParams[k] = v;
+    loadJobs(1);
+  });
+  document.getElementById("ordering").addEventListener("change", () => loadJobs(1));
+
+  const initial = paramsFromUrl();
+  fillFormFromParams(initial);
+  currentParams = initial;
+  loadJobs(1);
+</script>
+</body>
+</html>

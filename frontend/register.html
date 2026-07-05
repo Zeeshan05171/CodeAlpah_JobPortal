@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create an account — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <span class="eyebrow">// Get started</span>
+    <h2>Create your account</h2>
+
+    <div class="role-toggle">
+      <button type="button" class="active" id="roleCandidateBtn">I'm a candidate</button>
+      <button type="button" id="roleEmployerBtn">I'm an employer</button>
+    </div>
+
+    <div id="registerAlert"></div>
+    <form id="registerForm">
+      <div class="field" style="margin-bottom:14px;" id="fullNameField">
+        <label for="fullName">Full name</label>
+        <input type="text" id="fullName">
+      </div>
+      <div class="field hidden" style="margin-bottom:14px;" id="companyNameField">
+        <label for="companyName">Company name</label>
+        <input type="text" id="companyName">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="username">Username</label>
+        <input type="text" id="username" required autocomplete="username">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field" style="margin-bottom:20px;">
+        <label for="password">Password</label>
+        <input type="password" id="password" required minlength="6" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="registerBtn">Create account</button>
+    </form>
+    <p class="text-muted" style="margin-top:18px; text-align:center;">
+      Already have an account? <a href="login.html" style="text-decoration:underline; color:var(--ink);">Log in</a>
+    </p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  renderNav();
+  if (Auth.isLoggedIn()) window.location.href = "index.html";
+
+  let role = "candidate";
+  const candBtn = document.getElementById("roleCandidateBtn");
+  const empBtn = document.getElementById("roleEmployerBtn");
+  const fullNameField = document.getElementById("fullNameField");
+  const companyNameField = document.getElementById("companyNameField");
+
+  function setRole(r) {
+    role = r;
+    candBtn.classList.toggle("active", r === "candidate");
+    empBtn.classList.toggle("active", r === "employer");
+    fullNameField.classList.toggle("hidden", r !== "candidate");
+    companyNameField.classList.toggle("hidden", r !== "employer");
+  }
+  candBtn.addEventListener("click", () => setRole("candidate"));
+  empBtn.addEventListener("click", () => setRole("employer"));
+
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("registerAlert");
+    alertEl.innerHTML = "";
+    const btn = document.getElementById("registerBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Creating account…`;
+
+    const payload = {
+      username: document.getElementById("username").value,
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+      role,
+    };
+    if (role === "candidate") payload.full_name = document.getElementById("fullName").value;
+    else payload.company_name = document.getElementById("companyName").value;
+
+    try {
+      const user = await Auth.register(payload);
+      toast("Account created — welcome!");
+      window.location.href = user.role === "employer" ? "employer-dashboard.html" : "candidate-dashboard.html";
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Create account";
+    }
+  });
+</script>
+</body>
+</html>

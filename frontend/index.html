@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobPortal — Find work. Hire faster.</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<section class="hero">
+  <div class="container hero-inner">
+    <div>
+      <span class="eyebrow">// Pakistan's job filing desk</span>
+      <h1>Every open role, filed and ready to apply.</h1>
+      <p class="lead">JobPortal connects employers and candidates through one clean pipeline — post a role, search by what matters to you, and track every application from "sent" to "hired."</p>
+      <div class="hero-actions">
+        <a href="jobs.html" class="btn btn-primary">Browse open roles</a>
+        <a href="register.html" class="btn btn-outline-light">Post a job as an employer</a>
+      </div>
+    </div>
+    <div class="tally-board" id="tallyBoard">
+      <div class="tally"><div class="num" id="tallyJobs">—</div><div class="label">Open roles</div></div>
+      <div class="tally"><div class="num" id="tallyCompanies">—</div><div class="label">Hiring companies</div></div>
+      <div class="tally"><div class="num">6</div><div class="label">Pipeline stages</div></div>
+      <div class="tally"><div class="num">24/7</div><div class="label">Applications open</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <form class="search-desk" id="heroSearch">
+    <div class="field">
+      <label for="q">Keyword</label>
+      <input type="text" id="q" name="keyword" placeholder="Job title, skill, company…">
+    </div>
+    <div class="field">
+      <label for="loc">Location</label>
+      <input type="text" id="loc" name="location" placeholder="City or 'Remote'">
+    </div>
+    <div class="field">
+      <label for="type">Job type</label>
+      <select id="type" name="job_type">
+        <option value="">Any type</option>
+        <option value="full_time">Full-time</option>
+        <option value="part_time">Part-time</option>
+        <option value="contract">Contract</option>
+        <option value="internship">Internship</option>
+        <option value="remote">Remote</option>
+      </select>
+    </div>
+    <button class="btn btn-dark" type="submit" style="align-self:end;">Search</button>
+  </form>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <h2>Freshly filed</h2>
+        <p class="text-muted">The newest roles pinned to the board.</p>
+      </div>
+      <a href="jobs.html" class="btn btn-outline btn-sm">View all roles →</a>
+    </div>
+    <div class="grid-jobs" id="featuredJobs">
+      <div class="text-muted">Loading roles…</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="background:var(--paper-dim);">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <h2>How the pipeline works</h2>
+        <p class="text-muted">The same three stages, whether you're hiring or applying.</p>
+      </div>
+    </div>
+    <div class="grid-jobs">
+      <div class="job-card">
+        <span class="badge-pill">01</span>
+        <h3>Post or search</h3>
+        <p class="desc">Employers file a role with the details that matter — pay, location, type. Candidates search and filter down to the ones worth their time.</p>
+      </div>
+      <div class="job-card">
+        <span class="badge-pill">02</span>
+        <h3>Apply with a resume on file</h3>
+        <p class="desc">Candidates upload a resume once, then reuse it across applications with a short cover note per role.</p>
+      </div>
+      <div class="job-card">
+        <span class="badge-pill">03</span>
+        <h3>Track every status change</h3>
+        <p class="desc">Every move — reviewed, shortlisted, interview, hired — triggers a notification, so nobody is left guessing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="mono">JobPortal — a Django REST + vanilla JS portfolio project.</div>
+    <div><a href="jobs.html">Browse jobs</a> · <a href="register.html">Create an account</a></div>
+  </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  renderNav("home");
+
+  document.getElementById("heroSearch").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(new FormData(e.target));
+    window.location.href = `jobs.html?${params.toString()}`;
+  });
+
+  function jobCardHtml(job) {
+    const cardClass = job.status !== "open" ? "closed" : job.is_remote ? "remote" : "";
+    return `
+      <article class="job-card ${cardClass}">
+        <div class="co">
+          <div class="co-mark">${companyInitials(job.company_name)}</div>
+          <div>
+            <div class="co-name">${escapeHtml(job.company_name)}</div>
+            <div class="text-muted mono" style="font-size:.72rem;">${timeAgo(job.created_at)}</div>
+          </div>
+        </div>
+        <h3><a href="job-detail.html?slug=${job.slug}">${escapeHtml(job.title)}</a></h3>
+        <div class="job-meta">
+          <span class="tag gold">${JOB_TYPE_LABELS[job.job_type] || job.job_type}</span>
+          <span class="tag">${escapeHtml(job.location)}</span>
+          ${job.is_remote ? '<span class="tag blue">Remote friendly</span>' : ""}
+        </div>
+        <p class="desc">${escapeHtml(job.description).slice(0, 110)}${job.description.length > 110 ? "…" : ""}</p>
+        <div class="foot">
+          <span class="salary">${formatSalary(job.salary_min, job.salary_max)}</span>
+          <span class="applicants-count">${job.applicant_count} applicant${job.applicant_count === 1 ? "" : "s"}</span>
+        </div>
+      </article>
+    `;
+  }
+
+  async function loadFeatured() {
+    try {
+      const data = await JobsAPI.list({ ordering: "-created_at" });
+      const jobs = (data.results || data).slice(0, 6);
+      document.getElementById("featuredJobs").innerHTML = jobs.length
+        ? jobs.map(jobCardHtml).join("")
+        : `<div class="empty-state"><div class="icon">🗂️</div>No open roles yet — check back soon.</div>`;
+
+      const companies = new Set(jobs.map((j) => j.company_name));
+      document.getElementById("tallyJobs").textContent = data.count ?? jobs.length;
+      document.getElementById("tallyCompanies").textContent = companies.size;
+    } catch (e) {
+      document.getElementById("featuredJobs").innerHTML = `<div class="alert alert-error">Couldn't load jobs. Is the backend running at ${API_BASE}?</div>`;
+    }
+  }
+  loadFeatured();
+</script>
+</body>
+</html>

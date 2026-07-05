@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employer dashboard — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+<style>
+  .status-select{ font-family:var(--font-mono); font-size:.78rem; padding:6px 8px; width:auto; }
+</style>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<section style="background:var(--ink); padding: 36px 0 24px;">
+  <div class="container">
+    <span class="eyebrow">// Employer desk</span>
+    <h1 style="color:#fff; font-size:1.9rem;" id="welcomeHeading">Your dashboard</h1>
+  </div>
+</section>
+
+<div class="container" style="padding-top:26px; padding-bottom:60px;">
+  <div class="dash">
+    <nav class="drawer-nav">
+      <a data-tab="overview" class="active">📊 Overview</a>
+      <a data-tab="postings">🗂️ Job postings</a>
+      <a data-tab="post">➕ Post a new job</a>
+      <a data-tab="applicants">🧑‍💼 Review applicants</a>
+      <a data-tab="profile">🏢 Company profile</a>
+    </nav>
+
+    <div>
+      <!-- OVERVIEW -->
+      <div class="panel" id="tab-overview">
+        <div class="panel-head"><h3 style="margin:0;">At a glance</h3></div>
+        <div class="stat-row" id="statTiles">
+          <div class="stat-tile"><div class="n">—</div><div class="l">Total jobs</div></div>
+          <div class="stat-tile"><div class="n">—</div><div class="l">Open jobs</div></div>
+          <div class="stat-tile"><div class="n">—</div><div class="l">Applications</div></div>
+          <div class="stat-tile"><div class="n">—</div><div class="l">Shortlisted</div></div>
+        </div>
+      </div>
+      <div class="panel" id="tab-overview-2">
+        <div class="panel-head"><h3 style="margin:0;">Top roles by applicants</h3></div>
+        <div id="topJobsList"><div class="text-muted">Loading…</div></div>
+      </div>
+
+      <!-- POSTINGS -->
+      <div class="panel hidden" id="tab-postings">
+        <div class="panel-head">
+          <h3 style="margin:0;">Your job postings</h3>
+          <button class="btn btn-outline btn-sm" data-goto="post">+ Post a job</button>
+        </div>
+        <div id="postingsList"><div class="text-muted">Loading…</div></div>
+      </div>
+
+      <!-- POST A JOB -->
+      <div class="panel hidden" id="tab-post">
+        <div class="panel-head"><h3 style="margin:0;" id="postFormTitle">Post a new job</h3></div>
+        <div id="postAlert"></div>
+        <form id="postJobForm">
+          <input type="hidden" id="editingSlug">
+          <div style="display:grid; grid-template-columns:2fr 1fr; gap:14px;">
+            <div class="field"><label for="j-title">Job title *</label><input type="text" id="j-title" required></div>
+            <div class="field"><label for="j-category">Category</label><input type="text" id="j-category" placeholder="e.g. Engineering"></div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:14px; margin-top:14px;">
+            <div class="field">
+              <label for="j-type">Job type</label>
+              <select id="j-type">
+                <option value="full_time">Full-time</option>
+                <option value="part_time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+                <option value="remote">Remote</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="j-exp">Experience level</label>
+              <select id="j-exp">
+                <option value="entry">Entry level</option>
+                <option value="mid">Mid level</option>
+                <option value="senior">Senior level</option>
+                <option value="lead">Lead / Principal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="j-status">Status</label>
+              <select id="j-status">
+                <option value="open">Open</option>
+                <option value="draft">Draft</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:14px; margin-top:14px;">
+            <div class="field" style="grid-column: span 2;"><label for="j-location">Location *</label><input type="text" id="j-location" required></div>
+            <div class="field"><label for="j-salary-min">Min salary (PKR)</label><input type="number" id="j-salary-min"></div>
+            <div class="field"><label for="j-salary-max">Max salary (PKR)</label><input type="number" id="j-salary-max"></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; align-items:end;">
+            <div class="field">
+              <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-family:var(--font-body); font-size:.9rem;">
+                <input type="checkbox" id="j-remote" style="width:auto;"> Remote friendly
+              </label>
+            </div>
+            <div class="field"><label for="j-deadline">Application deadline</label><input type="date" id="j-deadline"></div>
+          </div>
+          <div class="field" style="margin-top:14px;"><label for="j-desc">Description *</label><textarea id="j-desc" required></textarea></div>
+          <div class="field" style="margin-top:14px;"><label for="j-reqs">Requirements</label><textarea id="j-reqs"></textarea></div>
+          <div class="field" style="margin-top:14px;"><label for="j-resp">Responsibilities</label><textarea id="j-resp"></textarea></div>
+          <div style="display:flex; gap:10px; margin-top:18px;">
+            <button type="submit" class="btn btn-primary" id="postJobBtn">Publish job</button>
+            <button type="button" class="btn btn-outline" id="cancelEditBtn" style="display:none;">Cancel edit</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- APPLICANTS -->
+      <div class="panel hidden" id="tab-applicants">
+        <div class="panel-head">
+          <h3 style="margin:0;">Review applicants</h3>
+          <select id="applicantJobFilter" style="width:auto;"><option value="">Choose a job posting…</option></select>
+        </div>
+        <div id="applicantsList"><div class="empty-state"><div class="icon">🧑‍💼</div>Pick a job posting above to see who's applied.</div></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="panel hidden" id="tab-profile">
+        <div class="panel-head"><h3 style="margin:0;">Company profile</h3></div>
+        <div id="companyProfileAlert"></div>
+        <form id="companyProfileForm">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="field"><label for="c-name">Company name</label><input type="text" id="c-name"></div>
+            <div class="field"><label for="c-industry">Industry</label><input type="text" id="c-industry"></div>
+            <div class="field"><label for="c-website">Website</label><input type="url" id="c-website" placeholder="https://"></div>
+            <div class="field"><label for="c-location">Location</label><input type="text" id="c-location"></div>
+            <div class="field"><label for="c-size">Company size</label><input type="text" id="c-size" placeholder="e.g. 11-50 employees"></div>
+          </div>
+          <div class="field" style="margin-top:14px;"><label for="c-about">About the company</label><textarea id="c-about"></textarea></div>
+          <button type="submit" class="btn btn-primary" style="margin-top:16px;">Save company profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <div class="mono">JobPortal — a Django REST + vanilla JS portfolio project.</div>
+    <div><a href="jobs.html">Browse jobs</a></div>
+  </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  if (!requireAuth("employer")) { /* redirected */ }
+  renderNav("employer");
+
+  const user = Auth.currentUser();
+  document.getElementById("welcomeHeading").textContent = `Welcome back, ${user.username}`;
+
+  function switchTab(tabName) {
+    document.querySelectorAll(".drawer-nav a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tabName));
+    document.querySelectorAll("[id^='tab-']").forEach((p) => p.classList.add("hidden"));
+    document.getElementById(`tab-${tabName}`)?.classList.remove("hidden");
+    if (tabName === "overview") document.getElementById("tab-overview-2").classList.remove("hidden");
+  }
+  document.querySelectorAll(".drawer-nav a").forEach((a) => a.addEventListener("click", () => switchTab(a.dataset.tab)));
+  document.querySelectorAll("[data-goto]").forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.goto)));
+
+  // ---- Overview ----
+  async function loadStats() {
+    try {
+      const s = await StatsAPI.employer();
+      const tiles = document.querySelectorAll("#statTiles .stat-tile");
+      tiles[0].querySelector(".n").textContent = s.total_jobs;
+      tiles[1].querySelector(".n").textContent = s.open_jobs;
+      tiles[2].querySelector(".n").textContent = s.total_applications;
+      tiles[3].querySelector(".n").textContent = s.status_breakdown.shortlisted || 0;
+
+      const topEl = document.getElementById("topJobsList");
+      topEl.innerHTML = s.top_jobs.length
+        ? `<table class="list-table"><thead><tr><th>Role</th><th>Applicants</th></tr></thead><tbody>
+            ${s.top_jobs.map((j) => `<tr><td><a href="job-detail.html?slug=${j.slug}" style="text-decoration:underline;">${escapeHtml(j.title)}</a></td><td>${j.app_count}</td></tr>`).join("")}
+          </tbody></table>`
+        : `<div class="empty-state">Post your first job to see stats here.</div>`;
+    } catch (e) {
+      document.getElementById("topJobsList").innerHTML = `<div class="alert alert-error">Couldn't load stats.</div>`;
+    }
+  }
+
+  // ---- Postings ----
+  let myJobsCache = [];
+  async function loadPostings() {
+    const el = document.getElementById("postingsList");
+    try {
+      const data = await JobsAPI.myJobs();
+      myJobsCache = data.results || data;
+      el.innerHTML = myJobsCache.length
+        ? `<table class="list-table">
+            <thead><tr><th>Role</th><th>Type</th><th>Status</th><th>Applicants</th><th>Posted</th><th></th></tr></thead>
+            <tbody>
+              ${myJobsCache.map((j) => `
+                <tr>
+                  <td><a href="job-detail.html?slug=${j.slug}" style="text-decoration:underline;">${escapeHtml(j.title)}</a></td>
+                  <td>${JOB_TYPE_LABELS[j.job_type] || j.job_type}</td>
+                  <td><span class="tag ${j.status === "open" ? "teal" : ""}">${j.status}</span></td>
+                  <td>${j.applicant_count}</td>
+                  <td class="text-muted">${timeAgo(j.created_at)}</td>
+                  <td style="display:flex; gap:6px;">
+                    <button class="btn btn-outline btn-sm" data-action="edit" data-slug="${j.slug}">Edit</button>
+                    <button class="btn btn-danger btn-sm" data-action="delete" data-slug="${j.slug}">Delete</button>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`
+        : `<div class="empty-state"><div class="icon">🗂️</div>You haven't posted any jobs yet.</div>`;
+
+      el.querySelectorAll("[data-action='edit']").forEach((btn) => btn.addEventListener("click", () => startEdit(btn.dataset.slug)));
+      el.querySelectorAll("[data-action='delete']").forEach((btn) => btn.addEventListener("click", () => deleteJob(btn.dataset.slug)));
+
+      // populate applicant filter dropdown
+      const filterSelect = document.getElementById("applicantJobFilter");
+      filterSelect.innerHTML = `<option value="">Choose a job posting…</option>` +
+        myJobsCache.map((j) => `<option value="${j.slug}">${escapeHtml(j.title)} (${j.applicant_count})</option>`).join("");
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-error">Couldn't load your postings.</div>`;
+    }
+  }
+
+  function deleteJob(slug) {
+    if (!confirm("Delete this job posting? This cannot be undone.")) return;
+    JobsAPI.remove(slug).then(() => { toast("Job deleted"); loadPostings(); loadStats(); });
+  }
+
+  function startEdit(slug) {
+    const job = myJobsCache.find((j) => j.slug === slug);
+    if (!job) return;
+    document.getElementById("editingSlug").value = slug;
+    document.getElementById("postFormTitle").textContent = `Editing: ${job.title}`;
+    document.getElementById("j-title").value = job.title;
+    document.getElementById("j-category").value = job.category || "";
+    document.getElementById("j-type").value = job.job_type;
+    document.getElementById("j-exp").value = job.experience_level;
+    document.getElementById("j-status").value = job.status;
+    document.getElementById("j-location").value = job.location;
+    document.getElementById("j-salary-min").value = job.salary_min || "";
+    document.getElementById("j-salary-max").value = job.salary_max || "";
+    document.getElementById("j-remote").checked = job.is_remote;
+    document.getElementById("j-deadline").value = job.deadline || "";
+    document.getElementById("j-desc").value = job.description;
+    document.getElementById("j-reqs").value = job.requirements || "";
+    document.getElementById("j-resp").value = job.responsibilities || "";
+    document.getElementById("postJobBtn").textContent = "Save changes";
+    document.getElementById("cancelEditBtn").style.display = "inline-flex";
+    switchTab("post");
+  }
+
+  document.getElementById("cancelEditBtn").addEventListener("click", () => resetPostForm());
+
+  function resetPostForm() {
+    document.getElementById("postJobForm").reset();
+    document.getElementById("editingSlug").value = "";
+    document.getElementById("postFormTitle").textContent = "Post a new job";
+    document.getElementById("postJobBtn").textContent = "Publish job";
+    document.getElementById("cancelEditBtn").style.display = "none";
+  }
+
+  document.getElementById("postJobForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("postAlert");
+    alertEl.innerHTML = "";
+    const editingSlug = document.getElementById("editingSlug").value;
+
+    const payload = {
+      title: document.getElementById("j-title").value,
+      category: document.getElementById("j-category").value,
+      job_type: document.getElementById("j-type").value,
+      experience_level: document.getElementById("j-exp").value,
+      status: document.getElementById("j-status").value,
+      location: document.getElementById("j-location").value,
+      salary_min: document.getElementById("j-salary-min").value || null,
+      salary_max: document.getElementById("j-salary-max").value || null,
+      is_remote: document.getElementById("j-remote").checked,
+      deadline: document.getElementById("j-deadline").value || null,
+      description: document.getElementById("j-desc").value,
+      requirements: document.getElementById("j-reqs").value,
+      responsibilities: document.getElementById("j-resp").value,
+    };
+
+    const btn = document.getElementById("postJobBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      if (editingSlug) {
+        await JobsAPI.update(editingSlug, payload);
+        toast("Job updated");
+      } else {
+        await JobsAPI.create(payload);
+        toast("Job posted!");
+      }
+      resetPostForm();
+      loadPostings();
+      loadStats();
+      switchTab("postings");
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = editingSlug ? "Save changes" : "Publish job";
+    }
+  });
+
+  // ---- Applicants ----
+  document.getElementById("applicantJobFilter").addEventListener("change", async (e) => {
+    const slug = e.target.value;
+    const el = document.getElementById("applicantsList");
+    if (!slug) { el.innerHTML = `<div class="empty-state"><div class="icon">🧑‍💼</div>Pick a job posting above to see who's applied.</div>`; return; }
+    el.innerHTML = `<div class="text-muted">Loading applicants…</div>`;
+    try {
+      const apps = await JobsAPI.applicants(slug);
+      el.innerHTML = apps.length
+        ? apps.map((a) => `
+            <div class="panel" style="padding:16px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <div>
+                  <strong>${escapeHtml(a.candidate_name || "Candidate")}</strong>
+                  <div class="text-muted" style="font-size:.85rem;">${escapeHtml(a.candidate_headline || "")}</div>
+                  <div class="text-muted mono" style="font-size:.72rem; margin-top:4px;">Applied ${timeAgo(a.applied_at)}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="status-badge status-${a.status}">${STATUS_LABELS[a.status] || a.status}</span>
+                  <select class="status-select" data-id="${a.id}">
+                    ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${a.status === val ? "selected" : ""}>${label}</option>`).join("")}
+                  </select>
+                  ${a.resume_file ? `<a href="${a.resume_file}" target="_blank" class="btn btn-outline btn-sm">Resume</a>` : ""}
+                </div>
+              </div>
+              ${a.cover_letter ? `<p style="margin-top:12px; font-size:.9rem;">${escapeHtml(a.cover_letter)}</p>` : ""}
+            </div>`).join("")
+        : `<div class="empty-state"><div class="icon">📭</div>No applicants for this role yet.</div>`;
+
+      el.querySelectorAll(".status-select").forEach((sel) => {
+        sel.addEventListener("change", async () => {
+          try {
+            await ApplicationsAPI.updateStatus(sel.dataset.id, sel.value);
+            toast("Status updated — candidate notified");
+            document.getElementById("applicantJobFilter").dispatchEvent(new Event("change"));
+          } catch (err) {
+            toast(err.message, "error");
+          }
+        });
+      });
+    } catch (e2) {
+      el.innerHTML = `<div class="alert alert-error">Couldn't load applicants.</div>`;
+    }
+  });
+
+  // ---- Company profile ----
+  async function loadCompanyProfile() {
+    try {
+      const p = await ProfileAPI.employer();
+      document.getElementById("c-name").value = p.company_name || "";
+      document.getElementById("c-industry").value = p.industry || "";
+      document.getElementById("c-website").value = p.company_website || "";
+      document.getElementById("c-location").value = p.location || "";
+      document.getElementById("c-size").value = p.company_size || "";
+      document.getElementById("c-about").value = p.about || "";
+    } catch (e) { /* profile may not exist yet */ }
+  }
+
+  document.getElementById("companyProfileForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("companyProfileAlert");
+    try {
+      await ProfileAPI.employer({
+        company_name: document.getElementById("c-name").value,
+        industry: document.getElementById("c-industry").value,
+        company_website: document.getElementById("c-website").value,
+        location: document.getElementById("c-location").value,
+        company_size: document.getElementById("c-size").value,
+        about: document.getElementById("c-about").value,
+      });
+      alertEl.innerHTML = `<div class="alert alert-success">Company profile saved.</div>`;
+      toast("Profile updated");
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  loadStats();
+  loadPostings();
+  loadCompanyProfile();
+</script>
+</body>
+</html>

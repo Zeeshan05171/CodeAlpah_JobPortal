@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My dashboard — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<section style="background:var(--ink); padding: 36px 0 24px;">
+  <div class="container">
+    <span class="eyebrow">// Candidate desk</span>
+    <h1 style="color:#fff; font-size:1.9rem;" id="welcomeHeading">Your dashboard</h1>
+  </div>
+</section>
+
+<div class="container" style="padding-top:26px; padding-bottom:60px;">
+  <div class="dash">
+    <nav class="drawer-nav">
+      <a data-tab="applications" class="active">📥 My applications</a>
+      <a data-tab="resumes">📄 My resumes</a>
+      <a data-tab="profile">🪪 My profile</a>
+    </nav>
+
+    <div>
+      <!-- APPLICATIONS TAB -->
+      <div class="panel" id="tab-applications">
+        <div class="panel-head">
+          <h3 style="margin:0;">Applications</h3>
+          <a href="jobs.html" class="btn btn-outline btn-sm">Browse more roles</a>
+        </div>
+        <div id="applicationsList"><div class="text-muted">Loading…</div></div>
+      </div>
+
+      <!-- RESUMES TAB -->
+      <div class="panel hidden" id="tab-resumes">
+        <div class="panel-head">
+          <h3 style="margin:0;">Resumes on file</h3>
+        </div>
+        <form id="resumeUploadForm" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:12px; align-items:end; margin-bottom:22px;">
+          <div class="field">
+            <label for="resumeTitle">Title</label>
+            <input type="text" id="resumeTitle" placeholder="e.g. Backend Dev Resume 2026" required>
+          </div>
+          <div class="field">
+            <label for="resumeFile">File (PDF/DOC)</label>
+            <input type="file" id="resumeFile" accept=".pdf,.doc,.docx" required>
+          </div>
+          <button class="btn btn-primary" type="submit" id="resumeUploadBtn">Upload</button>
+        </form>
+        <div id="resumeAlert"></div>
+        <div id="resumesList"><div class="text-muted">Loading…</div></div>
+      </div>
+
+      <!-- PROFILE TAB -->
+      <div class="panel hidden" id="tab-profile">
+        <div class="panel-head"><h3 style="margin:0;">Profile</h3></div>
+        <div id="profileAlert"></div>
+        <form id="profileForm">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="field"><label for="p-fullname">Full name</label><input type="text" id="p-fullname"></div>
+            <div class="field"><label for="p-headline">Headline</label><input type="text" id="p-headline" placeholder="e.g. AI / Backend Developer"></div>
+            <div class="field"><label for="p-phone">Phone</label><input type="text" id="p-phone"></div>
+            <div class="field"><label for="p-location">Location</label><input type="text" id="p-location"></div>
+            <div class="field"><label for="p-exp">Years of experience</label><input type="number" id="p-exp" min="0"></div>
+            <div class="field"><label for="p-skills">Skills (comma separated)</label><input type="text" id="p-skills" placeholder="Python, Django, React"></div>
+          </div>
+          <div class="field" style="margin-top:14px;"><label for="p-about">About</label><textarea id="p-about"></textarea></div>
+          <button type="submit" class="btn btn-primary" style="margin-top:16px;">Save profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <div class="mono">JobPortal — a Django REST + vanilla JS portfolio project.</div>
+    <div><a href="jobs.html">Browse jobs</a></div>
+  </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  if (!requireAuth("candidate")) { /* redirected */ }
+  renderNav("candidate");
+
+  const user = Auth.currentUser();
+  document.getElementById("welcomeHeading").textContent = `Welcome back, ${user.username}`;
+
+  // ---- Tabs ----
+  document.querySelectorAll(".drawer-nav a").forEach((tabLink) => {
+    tabLink.addEventListener("click", () => {
+      document.querySelectorAll(".drawer-nav a").forEach((a) => a.classList.remove("active"));
+      tabLink.classList.add("active");
+      document.querySelectorAll("[id^='tab-']").forEach((p) => p.classList.add("hidden"));
+      document.getElementById(`tab-${tabLink.dataset.tab}`).classList.remove("hidden");
+    });
+  });
+
+  // ---- Applications ----
+  async function loadApplications() {
+    const el = document.getElementById("applicationsList");
+    try {
+      const data = await ApplicationsAPI.mine();
+      const apps = data.results || data;
+      el.innerHTML = apps.length
+        ? `<table class="list-table">
+            <thead><tr><th>Role</th><th>Company</th><th>Applied</th><th>Status</th></tr></thead>
+            <tbody>
+              ${apps.map((a) => `
+                <tr>
+                  <td><strong>${escapeHtml(a.job_title)}</strong></td>
+                  <td>${escapeHtml(a.company_name)}</td>
+                  <td class="text-muted">${timeAgo(a.applied_at)}</td>
+                  <td><span class="status-badge status-${a.status}">${STATUS_LABELS[a.status] || a.status}</span></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`
+        : `<div class="empty-state"><div class="icon">📭</div>No applications yet — <a href="jobs.html" style="text-decoration:underline;">browse open roles</a> to get started.</div>`;
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-error">Couldn't load applications.</div>`;
+    }
+  }
+
+  // ---- Resumes ----
+  async function loadResumes() {
+    const el = document.getElementById("resumesList");
+    try {
+      const data = await ResumesAPI.list();
+      const resumes = data.results || data;
+      el.innerHTML = resumes.length
+        ? `<table class="list-table">
+            <thead><tr><th>Title</th><th>Uploaded</th><th>Primary</th><th></th></tr></thead>
+            <tbody>
+              ${resumes.map((r) => `
+                <tr>
+                  <td><a href="${r.file}" target="_blank" style="text-decoration:underline;">${escapeHtml(r.title)}</a></td>
+                  <td class="text-muted">${timeAgo(r.uploaded_at)}</td>
+                  <td>${r.is_primary ? '<span class="tag teal">Primary</span>' : ""}</td>
+                  <td><button class="btn btn-danger btn-sm" data-id="${r.id}" data-action="delete-resume">Delete</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`
+        : `<div class="empty-state"><div class="icon">📄</div>No resumes uploaded yet.</div>`;
+
+      el.querySelectorAll("[data-action='delete-resume']").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Delete this resume?")) return;
+          await ResumesAPI.remove(btn.dataset.id);
+          toast("Resume deleted");
+          loadResumes();
+        });
+      });
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-error">Couldn't load resumes.</div>`;
+    }
+  }
+
+  document.getElementById("resumeUploadForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("resumeAlert");
+    alertEl.innerHTML = "";
+    const btn = document.getElementById("resumeUploadBtn");
+    const fileInput = document.getElementById("resumeFile");
+    if (!fileInput.files[0]) return;
+
+    const fd = new FormData();
+    fd.append("title", document.getElementById("resumeTitle").value);
+    fd.append("file", fileInput.files[0]);
+    fd.append("is_primary", "true");
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      await ResumesAPI.upload(fd);
+      toast("Resume uploaded");
+      document.getElementById("resumeUploadForm").reset();
+      loadResumes();
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Upload";
+    }
+  });
+
+  // ---- Profile ----
+  async function loadProfile() {
+    try {
+      const p = await ProfileAPI.candidate();
+      document.getElementById("p-fullname").value = p.full_name || "";
+      document.getElementById("p-headline").value = p.headline || "";
+      document.getElementById("p-phone").value = p.phone || "";
+      document.getElementById("p-location").value = p.location || "";
+      document.getElementById("p-exp").value = p.experience_years || 0;
+      document.getElementById("p-skills").value = p.skills || "";
+      document.getElementById("p-about").value = p.about || "";
+    } catch (e) { /* profile may not exist yet */ }
+  }
+
+  document.getElementById("profileForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alertEl = document.getElementById("profileAlert");
+    try {
+      await ProfileAPI.candidate({
+        full_name: document.getElementById("p-fullname").value,
+        headline: document.getElementById("p-headline").value,
+        phone: document.getElementById("p-phone").value,
+        location: document.getElementById("p-location").value,
+        experience_years: Number(document.getElementById("p-exp").value) || 0,
+        skills: document.getElementById("p-skills").value,
+        about: document.getElementById("p-about").value,
+      });
+      alertEl.innerHTML = `<div class="alert alert-success">Profile saved.</div>`;
+      toast("Profile updated");
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+
+  loadApplications();
+  loadResumes();
+  loadProfile();
+</script>
+</body>
+</html>

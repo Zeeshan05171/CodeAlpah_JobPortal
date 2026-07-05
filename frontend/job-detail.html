@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job details — JobPortal</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js"></script>
+<style>
+  .detail-wrap{ display:grid; grid-template-columns: 1fr 340px; gap: 28px; align-items:start; }
+  @media (max-width: 900px){ .detail-wrap{ grid-template-columns: 1fr; } }
+  .detail-head{ display:flex; gap:16px; align-items:flex-start; margin-bottom: 10px; }
+  .co-mark-lg{ width:56px; height:56px; border-radius:10px; background:var(--ink); color:var(--amber);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:1.3rem; flex-shrink:0;}
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(22,34,29,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .modal-backdrop.open{ display:flex; }
+  .modal{ background:var(--card); border-radius: var(--radius-lg); padding:30px; width:100%; max-width:520px; box-shadow: var(--shadow-pop); }
+</style>
+</head>
+<body>
+
+<div id="topnav"></div>
+
+<div class="container" style="padding-top:36px; padding-bottom:70px;">
+  <a href="jobs.html" class="text-muted mono" style="font-size:.82rem;">← Back to all roles</a>
+
+  <div id="jobDetail" style="margin-top:20px;">
+    <div class="text-muted">Loading role…</div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="applyModal">
+  <div class="modal">
+    <h3>Apply for this role</h3>
+    <div id="applyAlert"></div>
+    <form id="applyForm">
+      <div class="field" style="margin-bottom:14px;">
+        <label for="resumeSelect">Resume</label>
+        <select id="resumeSelect" required></select>
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label for="coverLetter">Cover note (optional)</label>
+        <textarea id="coverLetter" placeholder="A couple of lines on why you're a fit…"></textarea>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="submit" class="btn btn-primary btn-block" id="applySubmitBtn">Submit application</button>
+        <button type="button" class="btn btn-outline" id="applyCancelBtn">Cancel</button>
+      </div>
+      <p class="text-muted" style="margin-top:14px;">No resume on file yet? <a href="candidate-dashboard.html" style="text-decoration:underline;">Upload one from your dashboard</a> first.</p>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <div class="mono">JobPortal — a Django REST + vanilla JS portfolio project.</div>
+    <div><a href="jobs.html">Browse jobs</a></div>
+  </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+  renderNav("jobs");
+
+  const slug = new URLSearchParams(window.location.search).get("slug");
+  let currentJob = null;
+
+  function statusPill(status){
+    return `<span class="tag ${status === "open" ? "teal" : ""}">${status === "open" ? "Accepting applications" : "Closed"}</span>`;
+  }
+
+  async function loadJob() {
+    const el = document.getElementById("jobDetail");
+    if (!slug) { el.innerHTML = `<div class="alert alert-error">No job specified.</div>`; return; }
+    try {
+      currentJob = await JobsAPI.get(slug);
+      const j = currentJob;
+      const user = Auth.currentUser();
+      const canApply = Auth.isLoggedIn() && user.role === "candidate" && j.status === "open" && !j.has_applied;
+
+      el.innerHTML = `
+        <div class="detail-wrap">
+          <div>
+            <div class="detail-head">
+              <div class="co-mark-lg">${companyInitials(j.company_name)}</div>
+              <div>
+                <div class="co-name mono" style="font-size:.85rem;">${escapeHtml(j.company_name)} · ${escapeHtml(j.company_location || "")}</div>
+                <h1 style="margin:4px 0;">${escapeHtml(j.title)}</h1>
+                <div class="job-meta">
+                  <span class="tag gold">${JOB_TYPE_LABELS[j.job_type] || j.job_type}</span>
+                  <span class="tag">${escapeHtml(j.location)}</span>
+                  <span class="tag">${EXPERIENCE_LABELS[j.experience_level] || j.experience_level}</span>
+                  ${j.is_remote ? '<span class="tag blue">Remote friendly</span>' : ""}
+                  ${statusPill(j.status)}
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider">
+            <h3>About this role</h3>
+            <p style="white-space:pre-line;">${escapeHtml(j.description)}</p>
+
+            ${j.requirements ? `<h3>Requirements</h3><p style="white-space:pre-line;">${escapeHtml(j.requirements)}</p>` : ""}
+            ${j.responsibilities ? `<h3>Responsibilities</h3><p style="white-space:pre-line;">${escapeHtml(j.responsibilities)}</p>` : ""}
+          </div>
+
+          <aside class="panel">
+            <div class="salary" style="font-size:1.2rem; margin-bottom:6px;">${formatSalary(j.salary_min, j.salary_max)}</div>
+            <div class="text-muted" style="margin-bottom:18px;">${j.applicant_count} applicant${j.applicant_count === 1 ? "" : "s"} so far ${j.deadline ? `· Apply by ${new Date(j.deadline).toLocaleDateString()}` : ""}</div>
+
+            ${
+              j.has_applied
+                ? `<button class="btn btn-block" disabled>✓ Already applied</button>`
+                : canApply
+                ? `<button class="btn btn-primary btn-block" id="openApplyBtn">Apply for this role</button>`
+                : !Auth.isLoggedIn()
+                ? `<a href="login.html" class="btn btn-primary btn-block">Log in to apply</a>`
+                : user.role === "employer"
+                ? `<p class="text-muted">Employer accounts can't apply to jobs.</p>`
+                : `<button class="btn btn-block" disabled>Applications closed</button>`
+            }
+
+            <hr class="divider">
+            <div class="text-muted" style="font-size:.82rem;">Posted ${timeAgo(j.created_at)}</div>
+          </aside>
+        </div>
+      `;
+
+      const openBtn = document.getElementById("openApplyBtn");
+      if (openBtn) openBtn.addEventListener("click", openApplyModal);
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-error">Couldn't load this role. It may have been removed.</div>`;
+    }
+  }
+
+  async function openApplyModal() {
+    document.getElementById("applyModal").classList.add("open");
+    const select = document.getElementById("resumeSelect");
+    select.innerHTML = `<option>Loading resumes…</option>`;
+    try {
+      const data = await ResumesAPI.list();
+      const resumes = data.results || data;
+      select.innerHTML = resumes.length
+        ? resumes.map((r) => `<option value="${r.id}">${escapeHtml(r.title)}${r.is_primary ? " (primary)" : ""}</option>`).join("")
+        : `<option value="">No resumes uploaded</option>`;
+    } catch (e) {
+      select.innerHTML = `<option value="">Couldn't load resumes</option>`;
+    }
+  }
+
+  document.getElementById("applyCancelBtn").addEventListener("click", () => {
+    document.getElementById("applyModal").classList.remove("open");
+  });
+
+  document.getElementById("applyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const resumeId = document.getElementById("resumeSelect").value;
+    const alertEl = document.getElementById("applyAlert");
+    if (!resumeId) {
+      alertEl.innerHTML = `<div class="alert alert-error">Upload a resume from your dashboard before applying.</div>`;
+      return;
+    }
+    const btn = document.getElementById("applySubmitBtn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Submitting…`;
+    try {
+      await ApplicationsAPI.apply({
+        job: currentJob.id,
+        resume: resumeId,
+        cover_letter: document.getElementById("coverLetter").value,
+      });
+      document.getElementById("applyModal").classList.remove("open");
+      toast("Application submitted!");
+      loadJob();
+    } catch (err) {
+      alertEl.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Submit application";
+    }
+  });
+
+  loadJob();
+</script>
+</body>
+</html>
